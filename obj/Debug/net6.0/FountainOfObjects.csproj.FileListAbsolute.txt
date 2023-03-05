@@ -1,0 +1,15 @@
+/home/jasper/Documents/C# Learning/FountainOfObjects/bin/Debug/net6.0/FountainOfObjects
+/home/jasper/Documents/C# Learning/FountainOfObjects/bin/Debug/net6.0/FountainOfObjects.deps.json
+/home/jasper/Documents/C# Learning/FountainOfObjects/bin/Debug/net6.0/FountainOfObjects.runtimeconfig.json
+/home/jasper/Documents/C# Learning/FountainOfObjects/bin/Debug/net6.0/FountainOfObjects.dll
+/home/jasper/Documents/C# Learning/FountainOfObjects/bin/Debug/net6.0/ref/FountainOfObjects.dll
+/home/jasper/Documents/C# Learning/FountainOfObjects/bin/Debug/net6.0/FountainOfObjects.pdb
+/home/jasper/Documents/C# Learning/FountainOfObjects/obj/Debug/net6.0/FountainOfObjects.csproj.AssemblyReference.cache
+/home/jasper/Documents/C# Learning/FountainOfObjects/obj/Debug/net6.0/FountainOfObjects.GeneratedMSBuildEditorConfig.editorconfig
+/home/jasper/Documents/C# Learning/FountainOfObjects/obj/Debug/net6.0/FountainOfObjects.AssemblyInfoInputs.cache
+/home/jasper/Documents/C# Learning/FountainOfObjects/obj/Debug/net6.0/FountainOfObjects.AssemblyInfo.cs
+/home/jasper/Documents/C# Learning/FountainOfObjects/obj/Debug/net6.0/FountainOfObjects.csproj.CoreCompileInputs.cache
+/home/jasper/Documents/C# Learning/FountainOfObjects/obj/Debug/net6.0/FountainOfObjects.dll
+/home/jasper/Documents/C# Learning/FountainOfObjects/obj/Debug/net6.0/ref/FountainOfObjects.dll
+/home/jasper/Documents/C# Learning/FountainOfObjects/obj/Debug/net6.0/FountainOfObjects.pdb
+/home/jasper/Documents/C# Learning/FountainOfObjects/obj/Debug/net6.0/FountainOfObjects.genruntimeconfig.cache
