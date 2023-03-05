@@ -5,7 +5,7 @@
 
 var game = new FountainOfObjectsGame();
 var player = new Player();
-var world = new World(player, false);
+var world = new World(player, true);
 game.showStartScreen();
 world.showPickWorldSize();
 while (game.GameIsRunning)
@@ -15,6 +15,7 @@ while (game.GameIsRunning)
     Console.ForegroundColor = ConsoleColor.White;
     Console.WriteLine(room.getRoomTypeDescription());
     player.determineAction(world, room, game);
+    game.checkLoseCondition(world, player);
     game.checkWinCondition(world, player);
 }
 
@@ -33,6 +34,23 @@ public class FountainOfObjectsGame
         {
             GameIsRunning = false;
             Console.WriteLine("You made it out alive");
+            Console.WriteLine("Press any key to quit...");
+            Console.ReadKey();
+        }
+    }
+
+    public void checkLoseCondition(World world, Player player)
+    {
+        foreach (var monsterPosition in world.MonsterPositions)
+        {
+            if (player.currentPosition.ToString() == monsterPosition.ToString())
+            {
+                world.printRooms(player);
+                GameIsRunning = false;
+                Console.WriteLine("You have entered a room with an Amorak... You died.");
+                Console.WriteLine("Press any key to quit...");
+                Console.ReadKey();
+            }
         }
     }
 
@@ -69,6 +87,8 @@ public class World
     public bool fountainActivated;
     public bool RevealAll { get; }
     public Player Player { get; }
+    private WorldSize Size { get; set; }
+    public Position[] MonsterPositions { get; set; }
 
     public World(Player player, bool revealAll)
     {
@@ -77,6 +97,7 @@ public class World
     }
     public void MakeWorld(WorldSize size)
     {
+        Size = size;
         Rooms = size switch
         {
             WorldSize.Small => new Room[4, 4],
@@ -87,9 +108,6 @@ public class World
         var rnd = new Random();
         int entranceLocation = rnd.Next(0, (int)size);
         Position fountainPosition = new Position(rnd.Next(0, (int)size), rnd.Next(0, (int)size));
-        
-        Player.currentPosition = new Position(0, entranceLocation);
-        
         for (int row = 0; row < Rooms.GetLength(0); row++)
         {
             for (int column = 0; column < Rooms.GetLength(1); column++)
@@ -98,6 +116,7 @@ public class World
                 if (row == 0 && column == entranceLocation)
                 {
                     Rooms[row, column] = new Room(RoomType.Entrance, new Position(row, column));
+                    Player.currentPosition = new Position(row, column);
                 } else if (roomPosition.ToString() == fountainPosition.ToString())
                 {
                     Rooms[row, column] = new Room(RoomType.Fountain, new Position(row, column));
@@ -113,6 +132,8 @@ public class World
                 }
             } 
         }
+
+        insertAmarakosIntoWorld();
     }
 
     public void printRooms(Player player)
@@ -134,6 +155,32 @@ public class World
         }
     }
 
+    public void insertAmarakosIntoWorld()
+    {
+        MonsterPositions = Size switch
+        {
+            WorldSize.Small => new Position[1],
+            WorldSize.Medium => new Position[2],
+            WorldSize.Large => new Position[3]
+        };
+        
+        var rnd = new Random();
+        for (int monster = 0; monster < MonsterPositions.GetLength(0); monster++)
+        {
+            bool generateCorrectPos = true;
+            while (generateCorrectPos)
+            {
+                Position randomPos = new Position(rnd.Next(0, (int)Size), rnd.Next(0, (int)Size));
+                if (Rooms[randomPos.Row, randomPos.Column].RoomType == RoomType.Empty)
+                {
+                    Rooms[randomPos.Row, randomPos.Column].RoomType = RoomType.Amarok;
+                    generateCorrectPos = false;
+                    MonsterPositions[monster] = randomPos;
+                }
+            }
+        }
+    }
+
     public void showPickWorldSize()
     {
 
@@ -141,7 +188,6 @@ public class World
         int selectedUIOption = 1;
         while (choice == WorldSize.NotDetermined)
         {
-          
             Console.Clear();
             Console.ForegroundColor = ConsoleColor.White;
             Console.WriteLine("What game size do you want to play on?");
@@ -157,7 +203,6 @@ public class World
             
             if (selectedUIOption == 2)
             {
-                Console.ForegroundColor = ConsoleColor.White;
                 Console.WriteLine("Small World: 4 x 4");
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("Medium World: 6 x 6");
@@ -166,7 +211,6 @@ public class World
             }
             if (selectedUIOption == 3)
             {
-                Console.ForegroundColor = ConsoleColor.White;
                 Console.WriteLine("Small World: 4 x 4");
                 Console.WriteLine("Medium World: 6 x 6");
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -209,38 +253,11 @@ public class World
                 MakeWorld(choice);
             }
         }
-   
-        // while (choice == 0)
-        // {
-        //     // string? input =Console.ReadLine();
-        //     // if (Int32.Parse(input) >= 1 && Int32.Parse(input) <= 3)
-        //     // {
-        //     //     choice = Int32.Parse(input);
-        //     //     if (choice == 1)
-        //     //     {
-        //     //         MakeWorld(WorldSize.Small);
-        //     //     }
-        //     //     else if(choice == 2)
-        //     //     {
-        //     //         MakeWorld(WorldSize.Medium);
-        //     //     }
-        //     //     else
-        //     //     {
-        //     //         MakeWorld(WorldSize.Large);
-        //     //     }
-        //     //     Console.Clear();
-        //     // }
-        //     // else
-        //     // {
-        //     //     Console.WriteLine("Please pick a number between 1 and 3");
-        //     // }
-        // }
     }
-    
 }
 public class Room
 {
-    public RoomType RoomType { get; }
+    public RoomType RoomType { get; set; }
     public bool Revealed;
     public Position Position;
 
@@ -303,17 +320,20 @@ public class Player
         if (action == "move north" && currentPosition.Row != 0)
         {
             currentPosition = new Position(currentPosition.Row - 1, currentPosition.Column);
+            checkAmarokProximity(world);
         }
         else if (action == "move south" && currentPosition.Row != world.Rooms.GetLength(0) - 1)
         {
             currentPosition = new Position(currentPosition.Row + 1, currentPosition.Column);
-
+            checkAmarokProximity(world);
         } else if (action == "move west" && currentPosition.Column != 0)
         {
             currentPosition = new Position(currentPosition.Row, currentPosition.Column -1);
+            checkAmarokProximity(world);
         } else if (action == "move east" && currentPosition.Column != world.Rooms.GetLength(1) - 1)
         {
             currentPosition = new Position(currentPosition.Row, currentPosition.Column + 1);
+            checkAmarokProximity(world);
         } else if (action == "enable fountain" && room.RoomType == RoomType.Fountain)
         {
             world.fountainActivated = true;
@@ -327,6 +347,23 @@ public class Player
         else
         {
             Console.WriteLine("You cannot do this right now..");
+        }
+    }
+
+    public void checkAmarokProximity(World world)
+    {
+        foreach (var monsterPosition in world.MonsterPositions)
+        {
+            if ((currentPosition.Row - 1 == monsterPosition.Row && currentPosition.Column == monsterPosition.Column) || 
+                (currentPosition.Row + 1 == monsterPosition.Row && currentPosition.Column == monsterPosition.Column) ||
+                (currentPosition.Column - 1 == monsterPosition.Column && currentPosition.Row == monsterPosition.Row) ||
+                (currentPosition.Column + 1 == monsterPosition.Column && currentPosition.Row == monsterPosition.Row))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("You smell something foul, an amarok is in a nearby room. Get your bow ready!!");
+                Console.ForegroundColor = ConsoleColor.White;
+                break;
+            } 
         }
     }
 }
@@ -349,6 +386,7 @@ public enum RoomType
     Empty,
     Fountain,
     Entrance,
-    Amarok,           
+    Amarok,
+    DeadAmarok,           
 };
 public enum WorldSize {NotDetermined = 0, Small = 4, Medium = 6, Large = 8};
