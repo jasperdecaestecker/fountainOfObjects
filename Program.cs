@@ -5,13 +5,16 @@
 
 var game = new FountainOfObjectsGame();
 var player = new Player();
-var world = new World(player);
+var world = new World(player, false);
 game.showStartScreen();
 world.showPickWorldSize();
 while (game.GameIsRunning)
 {
+    var room = world.Rooms[player.currentPosition.Row, player.currentPosition.Column];
+    world.printRooms(player);
     Console.ForegroundColor = ConsoleColor.White;
-    ConsolePrinter.printCurrentStatus(world, player, game);
+    Console.WriteLine(room.getRoomTypeDescription());
+    player.determineAction(world, room, game);
     game.checkWinCondition(world, player);
 }
 
@@ -41,6 +44,8 @@ public class FountainOfObjectsGame
         Console.WriteLine("Light is visible only in the entrance, and no other light is seen anywhere in the caverns");
         Console.WriteLine("You must navigate the caverns with your other senses");
         Console.WriteLine("Find the Fountain of Objects, activate it, and return to the entrance.");
+        Console.WriteLine("Press any key to start...");
+        Console.ReadKey();
     }
 
     public void showHelp()
@@ -58,54 +63,17 @@ public class FountainOfObjectsGame
     }
 }
 
-public class ConsolePrinter
-{
-    public static void printCurrentStatus(World world, Player player, FountainOfObjectsGame game)
-    {
-        var room = world.Rooms[player.currentPosition.Row, player.currentPosition.Column];
-        room.Visited = true;
-        world.printRooms(player);
-        Console.WriteLine(room.getRoomTypeDescription());
-        var action = player.getAction();
-        if (action == "move north" && player.currentPosition.Row != 0)
-        {
-            player.currentPosition = new Position(player.currentPosition.Row - 1, player.currentPosition.Column);
-        }
-        else if (action == "move south" && player.currentPosition.Row != world.Rooms.GetLength(0) - 1)
-        {
-            player.currentPosition = new Position(player.currentPosition.Row + 1, player.currentPosition.Column);
-
-        } else if (action == "move west" && player.currentPosition.Column != 0)
-        {
-            player.currentPosition = new Position(player.currentPosition.Row, player.currentPosition.Column -1);
-        } else if (action == "move east" && player.currentPosition.Column != world.Rooms.GetLength(1) - 12)
-        {
-            player.currentPosition = new Position(player.currentPosition.Row, player.currentPosition.Column + 1);
-        } else if (action == "enable fountain" && room.RoomType == RoomType.Fountain)
-        {
-            world.fountainActivated = true;
-            Console.WriteLine("Fountain activated, now lets get out of here!");
-        }
-        else if (action == "help")
-        {
-            Console.Clear();
-            game.showHelp();
-        }
-        else
-        {
-            Console.WriteLine("You cannot do this right now..");
-        }
-    }
-}
 public class World
 {
     public Room[,] Rooms;
     public bool fountainActivated;
+    public bool RevealAll { get; }
     public Player Player { get; }
 
-    public World(Player player)
+    public World(Player player, bool revealAll)
     {
         Player = player;
+        RevealAll = revealAll;
     }
     public void MakeWorld(WorldSize size)
     {
@@ -118,22 +86,30 @@ public class World
 
         var rnd = new Random();
         int entranceLocation = rnd.Next(0, (int)size);
+        Position fountainPosition = new Position(rnd.Next(0, (int)size), rnd.Next(0, (int)size));
+        
         Player.currentPosition = new Position(0, entranceLocation);
         
         for (int row = 0; row < Rooms.GetLength(0); row++)
         {
             for (int column = 0; column < Rooms.GetLength(1); column++)
             {
+                var roomPosition = new Position(row, column);
                 if (row == 0 && column == entranceLocation)
                 {
-                    Rooms[row, column] = new Room(RoomType.Entrance);
-                } else if (row == 0 && column == 2)
+                    Rooms[row, column] = new Room(RoomType.Entrance, new Position(row, column));
+                } else if (roomPosition.ToString() == fountainPosition.ToString())
                 {
-                    Rooms[row, column] = new Room(RoomType.Fountain);
+                    Rooms[row, column] = new Room(RoomType.Fountain, new Position(row, column));
                 }
                 else
                 {
-                    Rooms[row, column] = new Room(RoomType.Empty);
+                    Rooms[row, column] = new Room(RoomType.Empty, new Position(row, column));
+                }
+
+                if (RevealAll)
+                {
+                    Rooms[row,column].Revealed = true;
                 }
             } 
         }
@@ -141,6 +117,7 @@ public class World
 
     public void printRooms(Player player)
     {
+        Rooms[player.currentPosition.Row, player.currentPosition.Column].Revealed = true;
         for (int row = 0; row < Rooms.GetLength(0); row++)
         {
             for (int column = 0; column < Rooms.GetLength(1); column++)
@@ -151,11 +128,7 @@ public class World
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                 }
-                else
-                {
-                    Console.ForegroundColor = ConsoleColor.White;
-                } 
-                Console.Write(room.GetVisualRepresentation());
+                Console.Write(room.GetVisualRepresentation(player));
             }
             Console.WriteLine();
         }
@@ -163,57 +136,141 @@ public class World
 
     public void showPickWorldSize()
     {
-        Console.WriteLine("What game size do you want to play on?");
-        Console.WriteLine("1. Small 2. Medium 3. Large");
-        int choice = 0;
-        while (choice == 0)
+
+        WorldSize choice = WorldSize.NotDetermined;
+        int selectedUIOption = 1;
+        while (choice == WorldSize.NotDetermined)
         {
-            string? input =Console.ReadLine();
-            if (Int32.Parse(input) >= 1 && Int32.Parse(input) <= 3)
+          
+            Console.Clear();
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("What game size do you want to play on?");
+            
+            if (selectedUIOption == 1)
             {
-                choice = Int32.Parse(input);
-                if (choice == 1)
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Small World: 4 x 4");
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine("Medium World: 6 x 6");
+                Console.WriteLine("Large World: 8 x 8");
+            }
+            
+            if (selectedUIOption == 2)
+            {
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine("Small World: 4 x 4");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Medium World: 6 x 6");
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine("Large World: 8 x 8");
+            }
+            if (selectedUIOption == 3)
+            {
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine("Small World: 4 x 4");
+                Console.WriteLine("Medium World: 6 x 6");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Large World: 8 x 8");
+            }
+
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("Up/Down to change. Enter to select");
+            var pressedKey = Console.ReadKey();
+            if (pressedKey.Key == ConsoleKey.S || pressedKey.Key == ConsoleKey.DownArrow)
+            {
+                if (selectedUIOption == 3)
                 {
-                    MakeWorld(WorldSize.Small);
-                }
-                else if(choice == 2)
-                {
-                    MakeWorld(WorldSize.Medium);
+                    selectedUIOption = 1;
                 }
                 else
                 {
-                    MakeWorld(WorldSize.Large);
+                    selectedUIOption++;
                 }
-                Console.Clear();
-            }
-            else
+            } else if (pressedKey.Key == ConsoleKey.W || pressedKey.Key == ConsoleKey.UpArrow)
             {
-                Console.WriteLine("Please pick a number between 1 and 3");
+                if (selectedUIOption == 1)
+                {
+                    selectedUIOption = 3;
+                }
+                else
+                {
+                    selectedUIOption--;
+                }
+            } else if (pressedKey.Key == ConsoleKey.Enter)
+            {
+                choice = selectedUIOption switch
+                {
+                    1 => WorldSize.Small,
+                    2 => WorldSize.Medium,
+                    3 => WorldSize.Large,
+                    _ => WorldSize.NotDetermined
+                };
+                Console.Clear();
+                MakeWorld(choice);
             }
         }
+   
+        // while (choice == 0)
+        // {
+        //     // string? input =Console.ReadLine();
+        //     // if (Int32.Parse(input) >= 1 && Int32.Parse(input) <= 3)
+        //     // {
+        //     //     choice = Int32.Parse(input);
+        //     //     if (choice == 1)
+        //     //     {
+        //     //         MakeWorld(WorldSize.Small);
+        //     //     }
+        //     //     else if(choice == 2)
+        //     //     {
+        //     //         MakeWorld(WorldSize.Medium);
+        //     //     }
+        //     //     else
+        //     //     {
+        //     //         MakeWorld(WorldSize.Large);
+        //     //     }
+        //     //     Console.Clear();
+        //     // }
+        //     // else
+        //     // {
+        //     //     Console.WriteLine("Please pick a number between 1 and 3");
+        //     // }
+        // }
     }
     
 }
 public class Room
 {
     public RoomType RoomType { get; }
-    public bool Visited;
+    public bool Revealed;
+    public Position Position;
 
-    public Room(RoomType roomType)
+    public Room(RoomType roomType, Position position)
     {
         RoomType = roomType;
-        Visited = false;
+        Position = position;
+        Revealed = false;
     }
 
-    public string GetVisualRepresentation()
+    public string GetVisualRepresentation(Player player)
     {
         string room;
-        if (RoomType == RoomType.Entrance && Visited)
+        Console.ForegroundColor = Revealed ? ConsoleColor.White : ConsoleColor.Gray;
+
+        if (player.currentPosition.Row == Position.Row && player.currentPosition.Column == Position.Column)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+        }
+        
+        if (RoomType == RoomType.Entrance && Revealed)
         {
             room = "[E]";
-        } else if (RoomType == RoomType.Fountain && Visited)
+        } else if (RoomType == RoomType.Fountain && Revealed)
         {
             room ="[F]";
+        }
+        else if (RoomType == RoomType.Amarok && Revealed)
+        {
+            room = "[M]";
         }
         else
         {
@@ -238,12 +295,39 @@ public class Player
 {
     public Position currentPosition = new Position(0,0);
 
-    public string getAction()
+    public void determineAction(World world, Room room,FountainOfObjectsGame game)
     {
         Console.Write("What do you want to do? ");
         string action = Console.ReadLine();
-        Console.Clear();
-        return action;
+        
+        if (action == "move north" && currentPosition.Row != 0)
+        {
+            currentPosition = new Position(currentPosition.Row - 1, currentPosition.Column);
+        }
+        else if (action == "move south" && currentPosition.Row != world.Rooms.GetLength(0) - 1)
+        {
+            currentPosition = new Position(currentPosition.Row + 1, currentPosition.Column);
+
+        } else if (action == "move west" && currentPosition.Column != 0)
+        {
+            currentPosition = new Position(currentPosition.Row, currentPosition.Column -1);
+        } else if (action == "move east" && currentPosition.Column != world.Rooms.GetLength(1) - 1)
+        {
+            currentPosition = new Position(currentPosition.Row, currentPosition.Column + 1);
+        } else if (action == "enable fountain" && room.RoomType == RoomType.Fountain)
+        {
+            world.fountainActivated = true;
+            Console.WriteLine("Fountain activated, now lets get out of here!");
+        }
+        else if (action == "help")
+        {
+            Console.Clear();
+            game.showHelp();
+        }
+        else
+        {
+            Console.WriteLine("You cannot do this right now..");
+        }
     }
 }
 
@@ -264,6 +348,7 @@ public enum RoomType
 {
     Empty,
     Fountain,
-    Entrance
+    Entrance,
+    Amarok,           
 };
-public enum WorldSize {Small = 4, Medium = 6, Large = 8};
+public enum WorldSize {NotDetermined = 0, Small = 4, Medium = 6, Large = 8};
